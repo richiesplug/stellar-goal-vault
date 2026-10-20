@@ -1,5 +1,6 @@
 import compression from 'compression';
 import cors from 'cors';
+import { randomUUID } from 'crypto';
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import helmet from 'helmet';
@@ -632,13 +633,25 @@ app.get('/api/campaigns/:id', async (req: Request, res: Response, next: express.
       sendValidationError(parsedId.issues);
     }
 
+    const requestId =
+      (req as RequestWithId).requestId ||
+      (req.header('x-request-id') as string) ||
+      (req.header('X-Request-Id') as string) ||
+      randomUUID();
+    (req as RequestWithId).requestId = requestId;
+    if (!res.getHeader('X-Request-Id')) {
+      res.setHeader('X-Request-Id', requestId);
+    }
+
     const cacheKey = `campaigns:detail:${parsedId.value}`;
     const cached = await getCampaignCacheEntry(cacheKey);
     if (cached) {
+      const cachedData = JSON.parse(cached) as { data: unknown };
       res.setHeader('Cache-Control', 'max-age=30');
       res.setHeader('X-Cache', 'HIT');
       res.setHeader('Content-Type', 'application/json');
-      res.send(cached);
+      // The cached payload is shared, but correlation IDs are per request.
+      res.send(JSON.stringify({ ...cachedData, requestId }));
       return;
     }
 
@@ -653,7 +666,12 @@ app.get('/api/campaigns/:id', async (req: Request, res: Response, next: express.
     res.setHeader('Cache-Control', 'max-age=30');
     res.setHeader('X-Cache', 'MISS');
     res.setHeader('Content-Type', 'application/json');
-    res.send(responseBody);
+    res.send(
+      JSON.stringify({
+        data: campaign,
+        requestId,
+      }),
+    );
   } catch (error) {
     next(error);
   }

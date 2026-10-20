@@ -221,8 +221,9 @@ pledges. Full pledge history and pagination live on the dedicated collection end
 the `id` field rather than being coerced.
 
 **Response `200 OK`:** Campaign object with `progress` and a `pledges` preview, wrapped in
-`{ "data": { ... } }`. Responses are cached per campaign for 30 seconds (`X-Cache` reports
-`MISS` for a fresh read and `HIT` for a cached one).
+`{ "data": { ... }, "requestId": "..." }`. The `requestId` correlation ID matches the `X-Request-Id` response
+header and can be correlated across structured backend logs. Responses are cached per campaign for 30 seconds (`X-Cache`
+reports `MISS` for a fresh read and `HIT` for a cached one; cached payloads are shared while correlation IDs remain unique per request).
 
 **Response `400 Bad Request`** for a malformed ID, **`404 Not Found`** when the campaign does
 not exist, and **`500`** with a generic error body (no storage or stack details) when the

@@ -624,6 +624,10 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/Campaign"
+        requestId:
+          type: string
+          description: Correlation ID also returned in the X-Request-Id response header.
+          example: req-123
       required:
         - data
     CampaignAnalyticsResponse:
@@ -671,6 +675,57 @@ components:
         - percentFunded
         - pledgeCount
         - contributorCount
+    CampaignAnalyticsListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/CampaignAnalytics"
+        pagination:
+          $ref: "#/components/schemas/AnalyticsPagination"
+        requestId:
+          type: string
+          description: Correlation ID also returned in the X-Request-Id response header.
+          example: req-123
+      required:
+        - data
+        - pagination
+        - requestId
+    AnalyticsPagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page (1-based).
+          example: 1
+        limit:
+          type: integer
+          description: Number of items per page.
+          example: 10
+        total:
+          type: integer
+          description: Total number of items matching the query.
+          example: 42
+        totalPages:
+          type: integer
+          description: Total number of pages.
+          example: 5
+        hasPreviousPage:
+          type: boolean
+          description: Whether a previous page exists for this paginated request.
+          example: false
+        hasNextPage:
+          type: boolean
+          description: Whether a later page exists for this paginated request.
+          example: true
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+        - hasPreviousPage
+        - hasNextPage
     PledgeListResponse:
       type: object
       properties:
@@ -1819,10 +1874,13 @@ paths:
         - Campaigns
       summary: Get campaign analytics
       description: "Read-only analytics for one campaign. The path id must be a
-        canonical positive integer (no leading zeros, signs, or decimals) and
-        the endpoint accepts no query parameters: unknown or malformed input is
-        rejected with 400 instead of being ignored. Missing campaigns return
-        404."
+        canonical positive integer (no leading zeros, signs, or decimals).
+        Pagination is deterministic: page defaults to 1 and limit defaults to 10
+        when omitted, both must be integers, and limit is capped at 100.
+        Out-of-range values are rejected with 400 rather than clamped. The
+        response includes total, totalPages, hasPreviousPage, and hasNextPage so
+        callers can navigate without guessing where the collection ends. Missing
+        campaigns return 404."
       parameters:
         - schema:
             type: string
@@ -1831,13 +1889,30 @@ paths:
           required: true
           name: id
           in: path
+        - schema:
+            type: integer
+            minimum: 1
+            description: 1-based page number (default 1).
+          required: false
+          description: 1-based page number (default 1).
+          name: page
+          in: query
+        - schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            description: Items per page, 1 to 100 (default 10).
+          required: false
+          description: Items per page, 1 to 100 (default 10).
+          name: limit
+          in: query
       responses:
         "200":
-          description: Campaign analytics
+          description: Paginated campaign analytics
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CampaignAnalyticsResponse"
+                $ref: "#/components/schemas/CampaignAnalyticsListResponse"
         "400":
           description: Validation error
           content:
@@ -1898,14 +1973,18 @@ paths:
         - schema:
             type: integer
             minimum: 1
+            description: 1-based page number (default 1).
           required: false
+          description: 1-based page number (default 1).
           name: page
           in: query
         - schema:
             type: integer
             minimum: 1
             maximum: 100
+            description: Items per page, 1 to 100 (default 10).
           required: false
+          description: Items per page, 1 to 100 (default 10).
           name: pageSize
           in: query
       responses:

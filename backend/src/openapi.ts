@@ -302,6 +302,10 @@ const contributorPledgeListResponseSchema = z
 const campaignDetailResponseSchema = z
   .object({
     data: campaignSchema,
+    requestId: z.string().optional().openapi({
+      description: 'Correlation ID also returned in the X-Request-Id response header.',
+      example: 'req-123',
+    }),
   })
   .openapi('CampaignDetailResponse');
 
