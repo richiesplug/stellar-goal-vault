@@ -315,20 +315,30 @@ The same `pagination` shape (including `hasPreviousPage`/`hasNextPage`) is retur
 
 Adds a pledge to an open campaign.
 
+**Path parameters:** `id` — canonical positive integer campaign ID. Malformed IDs (such as
+`0`, `-1`, `1.5`, `01`, or non-numeric strings) return `400` with a `VALIDATION_ERROR`
+envelope containing a field-level detail for `id`.
+
 **Request body:**
 
 ```json
 {
   "contributor": "GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
-  "amount": 50
+  "amount": 50,
+  "assetCode": "USDC"
 }
 ```
 
-**Response `201 Created`:** Updated campaign object wrapped in `{ "data": { ... } }`.
+**Response `201 Created`:** Updated campaign object with computed `progress`, wrapped in `{ "data": { ... } }`.
 
-**Response `400`** when the campaign is not open, the amount is invalid, or a per-contributor limit is exceeded.
+**Response `400 Bad Request`** for malformed path IDs, payload validation failures, closed or expired
+campaigns (`INVALID_CAMPAIGN_STATE`), per-contributor limit breaches (`MAX_PER_CONTRIBUTOR_EXCEEDED`),
+funding cap breaches (`CAMPAIGN_FUNDING_CAP_EXCEEDED`), or unsupported tokens (`INVALID_ASSET`).
 
-**Response `404`** when the campaign does not exist.
+**Response `404 Not Found`** when the campaign does not exist.
+
+**Response `500 Internal Server Error`** with a generic error envelope (no storage or stack details) when a
+server-side failure occurs.
 
 ---
 

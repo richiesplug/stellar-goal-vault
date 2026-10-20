@@ -718,47 +718,51 @@ app.post(
   },
 );
 
-app.get('/api/campaigns/:id/pledges', (req: Request, res: Response) => {
-  const parsedId = parseCampaignId(req.params.id);
-  if (!parsedId.ok) {
-    sendValidationError(parsedId.issues);
-  }
+app.get('/api/campaigns/:id/pledges', (req: Request, res: Response, next: express.NextFunction) => {
+  try {
+    const parsedId = parseCampaignId(req.params.id);
+    if (!parsedId.ok) {
+      sendValidationError(parsedId.issues);
+    }
 
-  const paginationResult = parsePledgeListPaginationQuery({
-    page: req.query.page,
-    limit: req.query.limit,
-  });
-  if (!paginationResult.ok) {
-    sendValidationError(paginationResult.issues);
-  }
+    const paginationResult = parsePledgeListPaginationQuery({
+      page: req.query.page,
+      limit: req.query.limit,
+    });
+    if (!paginationResult.ok) {
+      sendValidationError(paginationResult.issues);
+    }
 
-  const campaign = getCampaign(parsedId.value);
-  if (!campaign) {
-    throw new AppError('Campaign not found.', 404, 'NOT_FOUND');
-  }
+    const campaign = getCampaign(parsedId.value);
+    if (!campaign) {
+      throw new AppError('Campaign not found.', 404, 'NOT_FOUND');
+    }
 
-  const { pledges, totalCount } = listCampaignPledges(parsedId.value, {
-    page: paginationResult.page,
-    limit: paginationResult.limit,
-  });
-  const totalPages = Math.max(1, Math.ceil(totalCount / paginationResult.limit));
-
-  res.setHeader('X-Total-Count', String(totalCount));
-  res.json({
-    data: pledges,
-    pagination: {
-      total: totalCount,
+    const { pledges, totalCount } = listCampaignPledges(parsedId.value, {
       page: paginationResult.page,
       limit: paginationResult.limit,
-      totalPages,
-      // Same navigation semantics as GET /api/campaigns: a page is only a
-      // "previous" page if there is something before it, and `hasNextPage`
-      // is derived from the bounded total, so clients never need a second
-      // request to discover the end of the collection.
-      hasPreviousPage: paginationResult.page > 1 && totalCount > 0,
-      hasNextPage: paginationResult.page < totalPages,
-    },
-  });
+    });
+    const totalPages = Math.max(1, Math.ceil(totalCount / paginationResult.limit));
+
+    res.setHeader('X-Total-Count', String(totalCount));
+    res.json({
+      data: pledges,
+      pagination: {
+        total: totalCount,
+        page: paginationResult.page,
+        limit: paginationResult.limit,
+        totalPages,
+        // Same navigation semantics as GET /api/campaigns: a page is only a
+        // "previous" page if there is something before it, and `hasNextPage`
+        // is derived from the bounded total, so clients never need a second
+        // request to discover the end of the collection.
+        hasPreviousPage: paginationResult.page > 1 && totalCount > 0,
+        hasNextPage: paginationResult.page < totalPages,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.post(
